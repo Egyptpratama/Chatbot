@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import time
+import torch
 import os
 import google.generativeai as genai
 from textblob import TextBlob
@@ -7,6 +8,8 @@ from datetime import datetime
 from googletrans import Translator
 import csv
 from pathlib import Path
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import pipeline
 
 app = Flask(__name__)
 
@@ -53,7 +56,7 @@ def initialize_csv():
     if not Path(CSV_FILE_PATH).exists():
         with open(CSV_FILE_PATH, 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(['Tanggal', 'Lokasi', 'Rating', 'Review', 'Sentimen', 'Skor Sentimen'])
+            writer.writerow(['Tanggal', 'Lokasi', 'Rating', 'Review', 'Sentimen', 'Score'])
 
 # Fungsi untuk menyimpan review ke CSV
 def save_review_to_csv(review_data):
@@ -65,7 +68,7 @@ def save_review_to_csv(review_data):
             review_data['rating'],
             review_data['text'],
             review_data['sentiment'],
-            review_data['sentiment_score']
+            review_data['score']
         ])
 
 # Fungsi untuk membaca semua review dari CSV
@@ -75,14 +78,17 @@ def read_reviews_from_csv():
         with open(CSV_FILE_PATH, 'r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                reviews.append({
-                    'date': row['Tanggal'],
-                    'location': row['Lokasi'],
-                    'rating': row['Rating'],
-                    'text': row['Review'],
-                    'sentiment': row['Sentimen'],
-                    'sentiment_score': float(row['Skor Sentimen'])
-                })
+                try:
+                    reviews.append({
+                        'date': row['Tanggal'],
+                        'location': row['Lokasi'],
+                        'rating': row['Rating'],
+                        'text': row['Review'],
+                        'sentiment': row['Sentimen'],
+                        'score': float(row['Score']) if 'Score' in row else None
+                    })
+                except KeyError as e:
+                    print(f"Missing key in row: {e}")
     return reviews
 
 # Initialize files and chat session globally
@@ -244,29 +250,26 @@ def submit_review():
     rating = data['rating']
     
     try:
-        # Terjemahkan teks review ke bahasa Inggris
-        translated = translator.translate(review_text, src='id', dest='en')
-        english_text = translated.text
         
-        # Analisis sentimen menggunakan teks bahasa Inggris
-        analysis = TextBlob(english_text)
-        sentiment_score = analysis.sentiment.polarity
+        # Load the ABSA model and tokenizer
+        model_name = "w11wo/indonesian-roberta-base-sentiment-classifier"
+        tokenizer = AutoTokenizer.from_pretrained(model_name, from_slow=True)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+        classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
         
-        # Sesuaikan threshold untuk kategorisasi sentimen
-        if sentiment_score > 0.1:
-            sentiment = "positif"
-        elif sentiment_score < -0.1:
-            sentiment = "negatif"
-        else:
-            sentiment = "netral"
-        
+        # Klasifikasi sentimen dengan model ABSA
+        absa_result = classifier(review_text)
+        absa_sentiment = absa_result[0]['label']
+        absa_score = absa_result[0]['score']
+     
         # Buat data review
         review_data = {
             'text': review_text,
             'location': location,
             'rating': rating,
-            'sentiment': sentiment,
-            'sentiment_score': sentiment_score,
+            'sentiment': absa_sentiment,
+            'score': absa_score,
             'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
@@ -278,8 +281,8 @@ def submit_review():
         
         return jsonify({
             'status': 'success',
-            'sentiment': sentiment,
-            'sentiment_score': round(sentiment_score, 2)
+            'sentiment': absa_sentiment,
+            'score': absa_score
         })
         
     except Exception as e:
