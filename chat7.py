@@ -56,7 +56,7 @@ def initialize_csv():
     if not Path(CSV_FILE_PATH).exists():
         with open(CSV_FILE_PATH, 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(['Tanggal', 'Lokasi', 'Rating', 'Review', 'Sentimen', 'Score'])
+            writer.writerow(['Tanggal', 'Lokasi', 'Review', 'Sentimen', 'Score'])
 
 # Fungsi untuk menyimpan review ke CSV
 def save_review_to_csv(review_data):
@@ -65,7 +65,6 @@ def save_review_to_csv(review_data):
         writer.writerow([
             review_data['date'],
             review_data['location'],
-            review_data['rating'],
             review_data['text'],
             review_data['sentiment'],
             review_data['score']
@@ -82,7 +81,6 @@ def read_reviews_from_csv():
                     reviews.append({
                         'date': row['Tanggal'],
                         'location': row['Lokasi'],
-                        'rating': row['Rating'],
                         'text': row['Review'],
                         'sentiment': row['Sentimen'],
                         'score': float(row['Score']) if 'Score' in row else None
@@ -267,7 +265,6 @@ def submit_review():
         review_data = {
             'text': review_text,
             'location': location,
-            'rating': rating,
             'sentiment': absa_sentiment,
             'score': absa_score,
             'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
