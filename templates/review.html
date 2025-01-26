@@ -143,16 +143,6 @@
                                style="display: none;" placeholder="Masukkan nama lokasi wisata lainnya">
                     </div>
                     <div class="mb-3">
-                        <label for="rating" class="form-label">Rating</label>
-                        <select class="form-control" id="rating" required>
-                            <option value="5">⭐⭐⭐⭐⭐ (5)</option>
-                            <option value="4">⭐⭐⭐⭐ (4)</option>
-                            <option value="3">⭐⭐⭐ (3)</option>
-                            <option value="2">⭐⭐ (2)</option>
-                            <option value="1">⭐ (1)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label for="review" class="form-label">Review Anda</label>
                         <textarea class="form-control" id="review" rows="4" required></textarea>
                     </div>
@@ -206,7 +196,6 @@
             
             const reviewData = {
                 location: locationSelect.id === 'lainnya' ? customLocation.value : locationSelect.text.split(' (')[0],
-                rating: document.getElementById('rating').value,
                 review: document.getElementById('review').value
             };
 
@@ -243,7 +232,6 @@
                 reviewsList.innerHTML = reviews.map(review => `
                     <div class="review-card">
                         <h5>${review.location}</h5>
-                        <div>Rating: ${'⭐'.repeat(review.rating)}</div>
                         <p>${review.text}</p>
                         <div class="sentiment-${review.sentiment}">
                             Sentimen: ${review.sentiment} (${review.sentiment_score})
